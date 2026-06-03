@@ -645,12 +645,14 @@ def build_alert(data: dict[str, Any], analysis: dict[str, Any]) -> str:
 
 
 def send_telegram(text: str) -> bool:
-    if not usable(CFG.telegram_token) or not usable(CFG.telegram_chat_id):
-        print("Telegram skipped: TELEGRAM_TOKEN or TELEGRAM_CHAT_ID missing/placeholder.")
+    telegram_token = os.environ.get("TELEGRAM_TOKEN", "")
+    telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not telegram_token or not telegram_chat_id:
+        print("Telegram skipped: TELEGRAM_TOKEN or TELEGRAM_CHAT_ID missing.")
         return False
-    url = f"https://api.telegram.org/bot{CFG.telegram_token}/sendMessage"
+    url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
     try:
-        res = requests.post(url, json={"chat_id": CFG.telegram_chat_id, "text": text}, timeout=20)
+        res = requests.post(url, json={"chat_id": telegram_chat_id, "text": text}, timeout=20)
         if res.status_code >= 400:
             print(f"Telegram error {res.status_code}: {res.text[:300]}")
         return res.status_code < 400
