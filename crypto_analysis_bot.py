@@ -17,6 +17,7 @@ import feedparser
 import pandas as pd
 import requests
 from apscheduler.schedulers.background import BackgroundScheduler
+from dotenv import load_dotenv
 from groq import Groq
 from pytrends.request import TrendReq
 from ta.momentum import RSIIndicator
@@ -41,6 +42,18 @@ MIN_TRADE_USD = 10.0
 MAX_TRADE_USD = 15.0
 ACTIVE_TRADES = []
 SCHEDULER = None
+
+load_dotenv(ENV_FILE)  # Local only. GitHub Actions uses repository secrets via os.environ.
+
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+BINANCE_API_KEY = os.environ.get("BINANCE_API_KEY", "")
+BINANCE_API_SECRET = os.environ.get("BINANCE_API_SECRET", "")
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+NEWSAPI_KEY = os.environ.get("NEWSAPI_KEY", "")
+COINGECKO_KEY = os.environ.get("COINGECKO_KEY", "")
+ETHERSCAN_KEY = os.environ.get("ETHERSCAN_KEY", "")
 
 COINS = {
     "BTC": {"cg": "bitcoin", "binance": "BTCUSDT"},
@@ -85,24 +98,17 @@ class Config:
 
 
 def load_env() -> Config:
-    """Load keys from .env without extra libraries."""
-    if ENV_FILE.exists():
-        for raw in ENV_FILE.read_text(encoding="utf-8").splitlines():
-            if not raw.strip() or raw.strip().startswith("#") or "=" not in raw:
-                continue
-            key, value = raw.split("=", 1)
-            os.environ.setdefault(key.strip(), value.strip().strip('"').strip("'"))
-
+    """Map loaded environment variables into one beginner-friendly config object."""
     return Config(
-        coingecko_key=os.getenv("COINGECKO_KEY", ""),
-        newsapi_key=os.getenv("NEWSAPI_KEY", ""),
-        groq_api_key=os.getenv("GROQ_API_KEY", ""),
-        binance_api_key=os.getenv("BINANCE_API_KEY", ""),
-        binance_api_secret=os.getenv("BINANCE_API_SECRET", ""),
-        gemini_api_key=os.getenv("GEMINI_API_KEY", ""),
-        telegram_token=os.getenv("TELEGRAM_TOKEN", ""),
-        telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
-        etherscan_key=os.getenv("ETHERSCAN_KEY", ""),
+        coingecko_key=COINGECKO_KEY,
+        newsapi_key=NEWSAPI_KEY,
+        groq_api_key=GROQ_API_KEY,
+        binance_api_key=BINANCE_API_KEY,
+        binance_api_secret=BINANCE_API_SECRET,
+        gemini_api_key=GEMINI_API_KEY,
+        telegram_token=TELEGRAM_TOKEN,
+        telegram_chat_id=TELEGRAM_CHAT_ID,
+        etherscan_key=ETHERSCAN_KEY,
     )
 
 
@@ -645,14 +651,12 @@ def build_alert(data: dict[str, Any], analysis: dict[str, Any]) -> str:
 
 
 def send_telegram(text: str) -> bool:
-    telegram_token = os.environ.get("TELEGRAM_TOKEN", "")
-    telegram_chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
-    if not telegram_token or not telegram_chat_id:
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         print("Telegram skipped: TELEGRAM_TOKEN or TELEGRAM_CHAT_ID missing.")
         return False
-    url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
+    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     try:
-        res = requests.post(url, json={"chat_id": telegram_chat_id, "text": text}, timeout=20)
+        res = requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": text}, timeout=20)
         if res.status_code >= 400:
             print(f"Telegram error {res.status_code}: {res.text[:300]}")
         return res.status_code < 400
@@ -662,6 +666,10 @@ def send_telegram(text: str) -> bool:
 
 
 def test_telegram() -> None:
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        raise RuntimeError(
+            "Telegram test failed. TELEGRAM_TOKEN and TELEGRAM_CHAT_ID must be set in GitHub Secrets."
+        )
     ok = send_telegram("✅ CryptoMind GitHub Actions connected.")
     if not ok:
         raise RuntimeError("Telegram test failed. Check TELEGRAM_TOKEN and TELEGRAM_CHAT_ID secrets.")

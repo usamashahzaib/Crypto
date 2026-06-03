@@ -7,5 +7,6 @@ pytrends
 feedparser
 python-telegram-bot
 python-binance
+python-dotenv
 Flask
 gunicorn
