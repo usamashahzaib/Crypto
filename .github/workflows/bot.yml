@@ -1,0 +1,73 @@
+name: CryptoMind Bot
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/15 * * * *"
+    - cron: "0 3 * * *"
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cryptomind-bot
+  cancel-in-progress: false
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      COINGECKO_KEY: ${{ secrets.COINGECKO_KEY }}
+      NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      BINANCE_API_KEY: ${{ secrets.BINANCE_API_KEY }}
+      BINANCE_API_SECRET: ${{ secrets.BINANCE_API_SECRET }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      ETHERSCAN_KEY: ${{ secrets.ETHERSCAN_KEY }}
+      GITHUB_EVENT_SCHEDULE: ${{ github.event.schedule }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install libraries
+        run: pip install -r requirements.txt
+
+      - name: Run bot task
+        run: |
+          python - <<'PY'
+          import os
+          import crypto_analysis_bot as bot
+
+          schedule = os.getenv("GITHUB_EVENT_SCHEDULE", "")
+          if schedule == "0 3 * * *":
+              bot.daily_summary()
+          elif schedule == "0 4 * * 1":
+              bot.weekly_summary()
+          else:
+              bot.run_analysis()
+          PY
+
+      - name: Save bot state
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f bot_state.json signals_history.json signals_log.txt || true
+          git diff --cached --quiet && exit 0
+          git commit -m "Update bot state [skip ci]"
+          git pull --rebase origin main
+          git push origin main
