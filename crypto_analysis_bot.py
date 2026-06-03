@@ -45,8 +45,8 @@ SCHEDULER = None
 
 load_dotenv(ENV_FILE)  # Local only. GitHub Actions uses repository secrets via os.environ.
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "") or os.environ.get("CRYPTO_TELEGRAM_BOT", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "") or os.environ.get("CRYPTO_SECRET", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 BINANCE_API_KEY = os.environ.get("BINANCE_API_KEY", "")
 BINANCE_API_SECRET = os.environ.get("BINANCE_API_SECRET", "")
@@ -666,6 +666,11 @@ def send_telegram(text: str) -> bool:
 
 
 def test_telegram() -> None:
+    token = os.environ.get("TELEGRAM_TOKEN", "") or os.environ.get("CRYPTO_TELEGRAM_BOT", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "") or os.environ.get("CRYPTO_SECRET", "")
+    print(f"DEBUG token length: {len(token)}")
+    print(f"DEBUG chat_id length: {len(chat_id)}")
+    print(f"DEBUG token empty: {token == ''}")
     if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
         raise RuntimeError(
             "Telegram test failed. TELEGRAM_TOKEN and TELEGRAM_CHAT_ID must be set in GitHub Secrets."
