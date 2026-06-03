@@ -45,8 +45,51 @@ SCHEDULER = None
 
 load_dotenv(ENV_FILE)  # Local only. GitHub Actions uses repository secrets via os.environ.
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "") or os.environ.get("CRYPTO_TELEGRAM_BOT", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "") or os.environ.get("CRYPTO_SECRET", "")
+
+def load_combined_secret_blob(blob: str) -> None:
+    """Support one GitHub Secret containing many KEY=VALUE lines or JSON."""
+    if not blob:
+        return
+    try:
+        data = json.loads(blob)
+        if isinstance(data, dict):
+            for key, value in data.items():
+                os.environ.setdefault(str(key).upper(), str(value).strip())
+            return
+    except Exception:
+        pass
+    for raw in blob.replace(";", "\n").splitlines():
+        if "=" not in raw:
+            continue
+        key, value = raw.split("=", 1)
+        os.environ.setdefault(key.strip().upper(), value.strip().strip('"').strip("'"))
+
+
+def load_telegram_blob(blob: str) -> None:
+    """Support one Telegram secret containing token + chat ID."""
+    if not blob:
+        return
+    load_combined_secret_blob(blob)
+    token = os.environ.get("TELEGRAM_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
+    if not token:
+        match = re.search(r"\d{6,}:[A-Za-z0-9_-]{20,}", blob)
+        if match:
+            os.environ["TELEGRAM_TOKEN"] = match.group(0)
+    if not chat_id:
+        ids = re.findall(r"(?<!:)-?\d{5,}", blob)
+        bot_id = os.environ.get("TELEGRAM_TOKEN", "").split(":", 1)[0]
+        for value in ids:
+            if value != bot_id:
+                os.environ["TELEGRAM_CHAT_ID"] = value
+                break
+
+
+load_combined_secret_blob(os.environ.get("CRYPTO_SECRET", ""))
+load_telegram_blob(os.environ.get("CRYPTO_TELEGRAM_BOT", ""))
+
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 BINANCE_API_KEY = os.environ.get("BINANCE_API_KEY", "")
 BINANCE_API_SECRET = os.environ.get("BINANCE_API_SECRET", "")
@@ -666,8 +709,8 @@ def send_telegram(text: str) -> bool:
 
 
 def test_telegram() -> None:
-    token = os.environ.get("TELEGRAM_TOKEN", "") or os.environ.get("CRYPTO_TELEGRAM_BOT", "")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "") or os.environ.get("CRYPTO_SECRET", "")
+    token = os.environ.get("TELEGRAM_TOKEN", "")
+    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
     print(f"DEBUG token length: {len(token)}")
     print(f"DEBUG chat_id length: {len(chat_id)}")
     print(f"DEBUG token empty: {token == ''}")
