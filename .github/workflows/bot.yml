@@ -4,6 +4,17 @@ on:
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
+    inputs:
+      task:
+        description: "What to run"
+        required: true
+        default: "telegram_test"
+        type: choice
+        options:
+          - telegram_test
+          - scan
+          - daily_report
+          - weekly_report
 
 permissions:
   contents: write
@@ -27,6 +38,7 @@ jobs:
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       ETHERSCAN_KEY: ${{ secrets.ETHERSCAN_KEY }}
+      BOT_TASK: ${{ github.event.inputs.task || 'scan' }}
 
     steps:
       - name: Checkout repo
@@ -46,8 +58,17 @@ jobs:
       - name: Run bot task
         run: |
           python - <<'PY'
+          import os
           import crypto_analysis_bot as bot
-          bot.run_analysis()
+          task = os.getenv("BOT_TASK", "scan")
+          if task == "telegram_test":
+              bot.test_telegram()
+          elif task == "daily_report":
+              bot.daily_summary()
+          elif task == "weekly_report":
+              bot.weekly_summary()
+          else:
+              bot.run_analysis()
           PY
 
       - name: Save bot state

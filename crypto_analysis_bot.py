@@ -646,13 +646,24 @@ def build_alert(data: dict[str, Any], analysis: dict[str, Any]) -> str:
 
 def send_telegram(text: str) -> bool:
     if not usable(CFG.telegram_token) or not usable(CFG.telegram_chat_id):
+        print("Telegram skipped: TELEGRAM_TOKEN or TELEGRAM_CHAT_ID missing/placeholder.")
         return False
     url = f"https://api.telegram.org/bot{CFG.telegram_token}/sendMessage"
     try:
         res = requests.post(url, json={"chat_id": CFG.telegram_chat_id, "text": text}, timeout=20)
+        if res.status_code >= 400:
+            print(f"Telegram error {res.status_code}: {res.text[:300]}")
         return res.status_code < 400
-    except Exception:
+    except Exception as err:
+        print(f"Telegram exception: {err}")
         return False
+
+
+def test_telegram() -> None:
+    ok = send_telegram("✅ CryptoMind GitHub Actions connected.")
+    if not ok:
+        raise RuntimeError("Telegram test failed. Check TELEGRAM_TOKEN and TELEGRAM_CHAT_ID secrets.")
+    print("Telegram test sent.")
 
 
 def should_send_signal(analysis: dict[str, Any], state: dict[str, Any], data: dict[str, Any]) -> bool:
