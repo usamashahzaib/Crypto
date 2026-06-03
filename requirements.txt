@@ -1,0 +1,11 @@
+requests
+pandas
+ta
+groq
+apscheduler
+pytrends
+feedparser
+python-telegram-bot
+python-binance
+Flask
+gunicorn

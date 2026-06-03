@@ -1,0 +1,7 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+signals_log.txt
+signals_history.json
+bot_state.json
