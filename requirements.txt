@@ -1,7 +1,6 @@
 requests
 pandas
 ta
-groq
 apscheduler
 pytrends
 feedparser
@@ -10,3 +9,7 @@ python-binance
 python-dotenv
 Flask
 gunicorn
+ccxt
+PyYAML
+pyarrow
+backtesting

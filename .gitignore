@@ -5,3 +5,6 @@ __pycache__/
 signals_log.txt
 signals_history.json
 bot_state.json
+data/cache/
+logs/
+backtest_results/

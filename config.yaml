@@ -1,0 +1,36 @@
+capital:
+  initial: 1000.0
+  currency: USDT
+  risk_per_trade: 0.02
+
+exchange:
+  name: binance_futures
+  fee_taker: 0.0006
+  fee_maker: 0.0002
+
+risk:
+  max_positions: 3
+  correlation_threshold: 0.7
+  atr_multiplier_sl: 1.5
+  atr_multiplier_tp: 3.0
+
+signals:
+  composite_threshold: 0.65
+  cooldown_hours: 4
+  weights:
+    trend: 0.25
+    momentum: 0.20
+    funding: 0.15
+    oi_delta: 0.15
+    whale: 0.15
+    sentiment: 0.10
+
+backtest:
+  train_days: 60
+  test_days: 15
+  step_days: 15
+  start_date: "2024-01-01"
+
+logging:
+  level: INFO
+  path: logs/
