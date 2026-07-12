@@ -520,10 +520,11 @@ def fallback_analysis(data: dict[str, Any], state: dict[str, Any] | None = None)
     allocation = default_allocation(state)
     if action != "HOLD" and allocation < MIN_TRADE_USD:
         action = "HOLD"
+    confidence = 50 if action == "HOLD" else min(85, 55 + max(bullish, bearish) * 10)
     return {
         "action": action,
         "target_coin": "BTC",
-        "confidence_score": 55,
+        "confidence_score": confidence,
         "entry_zone": format_entry(data, "BTC"),
         "take_profit": target_price(data, "BTC", action, 1.03),
         "stop_loss": target_price(data, "BTC", action, 0.985),
@@ -564,7 +565,7 @@ Respond ONLY in this exact valid JSON format:
     try:
         client = Groq(api_key=CFG.groq_api_key)
         res = client.chat.completions.create(
-            model="llama3-70b-8192",
+            model="llama-3.3-70b-versatile",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": json.dumps(data, default=str)[:18000]},
@@ -732,9 +733,9 @@ def should_send_signal(analysis: dict[str, Any], state: dict[str, Any], data: di
     coin = analysis["target_coin"]
     rsi = indicator_value(data, coin, "rsi")
     fear = fear_greed_value(data)
-    if analysis["action"] == "BUY" and not (rsi is not None and rsi < 35 and fear is not None and fear < 30):
+    if analysis["action"] == "BUY" and not (rsi is not None and rsi < 40 and fear is not None and fear < 40):
         return False
-    if analysis["action"] == "SELL" and not (rsi is not None and rsi > 65 and fear is not None and fear > 70):
+    if analysis["action"] == "SELL" and not (rsi is not None and rsi > 60 and fear is not None and fear > 60):
         return False
     if analysis["action"] != "HOLD" and len(ACTIVE_TRADES) >= MAX_ACTIVE_POSITIONS:
         send_telegram("⏸️ Max positions reached. Waiting for exit.")
@@ -882,6 +883,28 @@ def run_analysis() -> None:
         print(f"[{now_pkt():%Y-%m-%d %H:%M:%S}] Done. {analysis['action']} {analysis['target_coin']} {analysis['confidence_score']}%. Sent={sent}")
     except Exception as err:
         print(f"[{now_pkt():%Y-%m-%d %H:%M:%S}] Error skipped: {err}")
+    try:
+        maybe_send_scheduled_reports()
+    except Exception as err:
+        print(f"[{now_pkt():%Y-%m-%d %H:%M:%S}] Scheduled reports skipped: {err}")
+
+
+def maybe_send_scheduled_reports() -> None:
+    """Deliver daily/weekly reports from the 15-min cron once they are due."""
+    now = now_pkt()
+    state = load_state()
+    today = now.date().isoformat()
+    if now.hour >= 8 and state.get("last_daily_report") != today:
+        daily_summary()
+        state = load_state()
+        state["last_daily_report"] = today
+        save_state(state)
+    week = now.strftime("%G-W%V")
+    if now.weekday() == 0 and now.hour >= 9 and state.get("last_weekly_report") != week:
+        weekly_summary()
+        state = load_state()
+        state["last_weekly_report"] = week
+        save_state(state)
 
 
 def daily_summary() -> None:
