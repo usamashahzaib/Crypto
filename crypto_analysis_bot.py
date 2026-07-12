@@ -550,6 +550,7 @@ Capital rules:
 - Allocation must NEVER be less than ${MIN_TRADE_USD:.2f} and never more than ${MAX_TRADE_USD:.2f} per trade.
 - If risk is too high for a ${MIN_TRADE_USD:.2f} position, or no slot is available, output HOLD with allocation_usd "0.00".
 - If Technical Chartist and Sentiment/Flow Analyst disagree, output HOLD.
+- confidence_score must be your real conviction as an integer 0-100, never the placeholder 0.
 Respond ONLY in this exact valid JSON format:
 {{
   "action": "BUY or SELL or HOLD",
