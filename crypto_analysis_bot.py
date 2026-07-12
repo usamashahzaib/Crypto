@@ -860,8 +860,19 @@ def check_active_trades(state: dict[str, Any], data: dict[str, Any]) -> None:
     sync_active_trades(state)
 
 
+def ensure_persisted_files() -> None:
+    """GitHub Actions commits these files after each run; git add fails if any is missing."""
+    if not HISTORY_FILE.exists():
+        save_history([])
+    if not LOG_FILE.exists():
+        LOG_FILE.touch()
+    if not STATE_FILE.exists():
+        save_state(load_state())
+
+
 def run_analysis() -> None:
     try:
+        ensure_persisted_files()
         state = reset_daily_if_needed(load_state())
         data = collect_data()
         check_active_trades(state, data)
