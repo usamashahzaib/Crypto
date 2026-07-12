@@ -136,7 +136,7 @@ def _paper_once(cfg: dict, fetcher: DataFetcher, reporter: TelegramReporter, sta
 
 def paper_mode(cfg: dict) -> None:
     fetcher = DataFetcher("binance")
-    reporter = TelegramReporter(os.getenv("TELEGRAM_BOT_TOKEN", ""), os.getenv("TELEGRAM_CHAT_ID", ""))
+    reporter = TelegramReporter(os.getenv("TELEGRAM_TOKEN", os.getenv("TELEGRAM_BOT_TOKEN", "")), os.getenv("TELEGRAM_CHAT_ID", ""))
     state = _state()
     while True:
         _paper_once(cfg, fetcher, reporter, state)
