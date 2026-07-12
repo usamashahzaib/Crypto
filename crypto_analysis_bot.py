@@ -551,7 +551,7 @@ Capital rules:
 - If risk is too high for a ${MIN_TRADE_USD:.2f} position, or no slot is available, output HOLD with allocation_usd "0.00".
 - If Technical Chartist and Sentiment/Flow Analyst disagree, output HOLD.
 Respond ONLY in this exact valid JSON format:
-{
+{{
   "action": "BUY or SELL or HOLD",
   "target_coin": "BTC or ETH or SOL",
   "confidence_score": 0,
@@ -560,7 +560,7 @@ Respond ONLY in this exact valid JSON format:
   "stop_loss": "Strict exit price",
   "allocation_usd": "Exact dollar amount to invest (e.g., 10.00 or 15.00)",
   "institutional_logic": "2 sentences explaining the mathematical and psychological alignment"
-}
+}}
 """.strip()
     try:
         client = Groq(api_key=CFG.groq_api_key)
