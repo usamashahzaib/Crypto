@@ -334,6 +334,29 @@ def get_futures_data() -> dict[str, Any]:
     return out
 
 
+def get_order_flow() -> dict[str, Any]:
+    """Institutional-grade flow data from Binance: order-book imbalance, trader positioning, taker flow."""
+    out = {}
+    for symbol, meta in COINS.items():
+        try:
+            pair = meta["binance"]
+            depth = safe_get_json("https://api.binance.com/api/v3/depth", params={"symbol": pair, "limit": 100}) or {}
+            bids = sum(float(p) * float(q) for p, q in depth.get("bids", []))
+            asks = sum(float(p) * float(q) for p, q in depth.get("asks", []))
+            imbalance = round((bids - asks) / (bids + asks), 3) if bids + asks else 0.0
+            ls = safe_get_json("https://fapi.binance.com/futures/data/globalLongShortAccountRatio", params={"symbol": pair, "period": "1h", "limit": 1}) or []
+            taker = safe_get_json("https://fapi.binance.com/futures/data/takerlongshortRatio", params={"symbol": pair, "period": "1h", "limit": 1}) or []
+            out[symbol] = {
+                "book_imbalance": imbalance,
+                "book_bias": "BUY_PRESSURE" if imbalance > 0.15 else "SELL_PRESSURE" if imbalance < -0.15 else "BALANCED",
+                "long_short_ratio": float((ls[0] if ls else {}).get("longShortRatio") or 0),
+                "taker_buy_sell_ratio": float((taker[0] if taker else {}).get("buySellRatio") or 0),
+            }
+        except Exception:
+            continue
+    return out
+
+
 def funding_label(rate: float) -> str:
     if rate >= 0.0005:
         return "High"
@@ -494,6 +517,7 @@ def collect_data() -> dict[str, Any]:
         "indicators": indicators,
         "macro_trend": get_macro_trend(),
         "futures": get_futures_data(),
+        "order_flow": get_order_flow(),
         "fear_greed": get_fear_greed(),
         "news": get_crypto_news(),
         "btc_whales": get_btc_whales(),
@@ -516,6 +540,9 @@ def fallback_analysis(data: dict[str, Any], state: dict[str, Any] | None = None)
         bullish += 1
     if trend == "Bearish":
         bearish += 1
+    imbalance = float(((data.get("order_flow") or {}).get("BTC") or {}).get("book_imbalance") or 0)
+    bullish += imbalance > 0.15
+    bearish += imbalance < -0.15
     action = "BUY" if bullish > bearish else "SELL" if bearish > bullish else "HOLD"
     allocation = default_allocation(state)
     if action != "HOLD" and allocation < MIN_TRADE_USD:
@@ -540,7 +567,7 @@ def analyze_with_groq(data: dict[str, Any], state: dict[str, Any]) -> dict[str, 
     system_prompt = f"""
 You are a professional multi-billion dollar crypto hedge fund analyst.
 Simulate a 3-Agent boardroom debate internally:
-- Agent 1 (Technical Chartist): Evaluates 4H trend, 15M RSI/MACD, Funding Rates, and Open Interest.
+- Agent 1 (Technical Chartist): Evaluates 4H trend, 15M RSI/MACD, Funding Rates, Open Interest, order-book imbalance, long/short positioning, and taker flow (order_flow data).
 - Agent 2 (Sentiment & Flow Analyst): Evaluates RSS/NewsAPI news, Whale transactions, and Nitter alerts.
 - Agent 3 (Risk Manager): Aligns both agents, uses total capital, active positions, entry zone, and stop loss to size the trade.
 Capital rules:
@@ -727,7 +754,7 @@ def test_telegram() -> None:
 
 
 def should_send_signal(analysis: dict[str, Any], state: dict[str, Any], data: dict[str, Any]) -> bool:
-    if analysis["confidence_score"] <= 65:
+    if analysis["confidence_score"] < 70:
         return False
     if analysis["action"] not in {"BUY", "SELL"}:
         return False
